@@ -87,8 +87,25 @@ select *
 from MonEquip.hire
 where start_date > end_date;
 
+select * 
+from MonEquip.sales
+where sales_id < 1;
+
+
 
 --Null Value Problems
+select *
+from MonEquip.staff
+where company_branch IS NULL;
+
+select * 
+from MonEquip.hire
+where season is null;
+
+select * 
+from MonEquip.sales
+where season is null;
+
 --Null Category 
 
 select * from MonEquip.equipment
