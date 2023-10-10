@@ -22,7 +22,6 @@ select * from MonEquip.HIRE;
 select * from MonEquip.SALES;
 select * from MonEquip.STAFF;
 
-
 --1. How many records in the operational database? 
 select count(*)  from MonEquip.ADDRESS; --150
 select count(*)  from MonEquip.CATEGORY; --15
@@ -34,11 +33,10 @@ select count(*)  from MonEquip.SALES; --151
 select count(*)  from MonEquip.STAFF; --50
 
 --2. How many records in the data warehouse? 
+
 --3. What kind of data is in the operational database? 
 
-
 --4. How do the tables look like in the data warehouse?
-
 
 --Relationship Problems 
 
@@ -60,14 +58,10 @@ where staff_id not in
     (select staff_id
     from MonEquip.staff);
 
-
-
 --Relationship Problems
 select count(*)  from MonEquip.CUSTOMER; --153 should be 150
 select count(*) from MonEquip.HIRE; --304
 select count(*)  from MonEquip.SALES; --151
-
-
 
 select count(distinct customer_id) from MonEquip.HIRE; --127
 select count(distinct customer_id) from MonEquip.Sales; --92
@@ -75,33 +69,48 @@ select count(distinct customer_id) from MonEquip.Sales; --92
 select count(distinct customer_type_id) 
 from MonEquip.CUSTOMER;
 
-
 --Incorrect Values
---sales price negatve
---unitsalesprice * quantity = total sales price?
---manufacturer year and sales date
 
+--sales price negatve
+select *
+from MonEquip.sales
+where unit_sales_price < 0;
+
+--unitsalesprice * quantity = total sales price
+select * 
+from MonEquip.sales 
+where unit_sales_price * quantity != total_sales_price;
+
+--manufacturer year and sales date
+select * 
+from MonEquip.equipment full outer join monequip.sales on MonEquip.equipment.equipment_id = monequip.sales.equipment_id
+where MonEquip.equipment.manufacture_year > MonEquip.sales.sales_date;
 
 --Inconsistent Values
+
+-- checking if hire starting date is earlier than end date
 select * 
 from MonEquip.hire
 where start_date > end_date;
 
+-- checking if sales can not be earlier than the first sale
 select * 
 from MonEquip.sales
 where sales_id < 1;
 
-
-
 --Null Value Problems
+
+-- checking if company branch is not null in staff
 select *
 from MonEquip.staff
 where company_branch IS NULL;
 
+-- checking if season is not null in hire
 select * 
 from MonEquip.hire
 where season is null;
 
+-- checking if season is not null in sales
 select * 
 from MonEquip.sales
 where season is null;
@@ -117,6 +126,7 @@ select distinct CUSTOMER_TYPE_ID
 from MonEquip.customer;
 
 --Duplication Problems
+
 --customer with 4 counts
 select customer_id, count(*)
 from MonEquip.customer
@@ -125,7 +135,6 @@ having count(*) > 1;
 
 select * from  MonEquip.customer
 where customer_id = 52;
-
 
 --no simple duplicates for hire or sales
 
@@ -139,7 +148,6 @@ from MonEquip.hire
 group by hire_id
 having count(*) > 1;
 
-
 select staff_id, count(*)
 from MonEquip.staff
 group by staff_id
@@ -150,16 +158,16 @@ from MonEquip.equipment
 group by EQUIPMENT_ID
 having count(*) > 1;
 
- 
+
 --SQL statements of the data cleaning,
 
 
 --20.1.1 Duplication Problems ...................................... 542 
 --20.1.1.1 Data Duplication Between Records
 
-Detecting redundant records with different PK values can be tricky.
+--Detecting redundant records with different PK values can be tricky.
 
-One option is to group by all non-PK attributes. But if the number of non-PK attributes is large, this could be cumbersome.
+--One option is to group by all non-PK attributes. But if the number of non-PK attributes is large, this could be cumbersome.
 
 
 select START_DATE, END_DATE, EQUIPMENT_ID, QUANTITY, UNIT_HIRE_PRICE, TOTAL_HIRE_PRICE, CUSTOMER_ID, STAFF_ID, count(*)
@@ -184,8 +192,8 @@ having count(*) > 1;
 select *
 from MonEquip.sales s
 where s.customer_id not in
-select c.customer_id
-from  MonEquip.custome cr;
+    select c.customer_id
+    from  MonEquip.custome cr;
 
 select *
 from <<table 1>>
