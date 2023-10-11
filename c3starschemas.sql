@@ -94,126 +94,197 @@ insert into SalesPriceScaleDIM values ('High', '> $10,000');
 
 select * from SalesPriceScaleDIM;
 
--- Create HireFACT and SalesFACT using TempFacts
-
-
+-- Create HireFACT_V1 and SalesFACT_V1 using TempFacts
+-- Create HireFACT_V1 
 -- HireFact attributes
 --Season, Company_Branch, Customer_Type_ID, Category_ID, Time_ID
 
-HireFact_V1
+select * from MonEquip.EQUIPMENT; -- all them are distinct
+select * from MonEquip.HIRE;
+select * from MonEquip.SALES;
 
 
+DROP TABLE HireTempFact_V1 CASCADE CONSTRAINTS PURGE;
+
+create table HireTempFact_V1 as 
+select 
+to_char(H.START_DATE, 'YYYYMM') AS Time_ID,
+to_char(H.START_DATE, 'MM') as Month, -- Need for Season
+S.COMPANY_BRANCH,
+C.CUSTOMER_TYPE_ID,
+E.CATEGORY_ID,
+H.START_DATE,
+H.END_DATE,
+H.QUANTITY, -- for NUMBER_OF_EQUIPMENT
+H.UNIT_HIRE_PRICE,
+H.TOTAL_HIRE_PRICE, -- for Total_Revenue
+H.EQUIPMENT_ID
+from MonEquip.HIRE H, MonEquip.CUSTOMER C, MonEquip.EQUIPMENT E, MonEquip.STAFF S 
+where H.EQUIPMENT_ID = E.EQUIPMENT_ID AND
+H.STAFF_ID = S.STAFF_ID AND
+H.CUSTOMER_ID = C.CUSTOMER_ID;
+
+SELECT * FROM HireTempFact_V1;
+
+alter table HireTempFact_V1 add 
+(Season VARCHAR2(6));
+update HireTempFact_V1 
+set Season = 'Summer' 
+where Month >= '12' 
+OR Month <= '02';
+
+update HireTempFact_V1 
+set Season = 'Autumn' 
+where Month >= '03' 
+and Month <= '05';
+
+update HireTempFact_V1 
+set Season = 'Winter' 
+where Month >= '06' 
+and Month <= '08';
+
+update HireTempFact_V1 
+set Season = 'Spring' 
+where Month >= '09' 
+and Month <= '11';
+
+
+SELECT * FROM HireTempFact_V1;
+
+DROP TABLE HireFact_V1 CASCADE CONSTRAINTS PURGE;
+
+create table HireFact_V1 as 
+select 
+Season, 
+Company_Branch, 
+Customer_Type_ID, 
+Category_ID, 
+Time_ID,
+sum(QUANTITY) AS NUMBER_OF_EQUIPMENT_HIRED,
+sum(TOTAL_HIRE_PRICE) AS TOTAL_REVENUE_FOR_HIRING,
+AVG(UNIT_HIRE_PRICE) AS AVERAGE_HIRE_PRICE
+from HireTempFact_V1 
+group by
+Season, 
+Company_Branch, 
+Customer_Type_ID, 
+Category_ID, 
+Time_ID,
+EQUIPMENT_ID;
+
+SELECT * FROM HireFact_V1;
+
+-- Create SalesFACT_V1
 -- SalesFact attributes
 --Season, Company_Branch, Customer_Type_ID, Category_ID, Time_ID, SalesPriceScale
+-- Sales price scale: low sales <$5,000; medium sales between $5,000 and $10,000; high sales > $10,000
 
-SalesFact_V1
+select * from MonEquip.SALES;
 
+DROP TABLE SalesTempFact_V1 CASCADE CONSTRAINTS PURGE;
 
-
-
-create table TempFact as 
+create table SalesTempFact_V1 as 
 select 
-to_char(B.Borrow_DateTime, ’YYYY’) as Year, 
-to_char(B.Borrow_DateTime, ’MM’) as Month, 
-M.Med_Type_ID, 
-M.Cen_ID, 
-M.Med_Item_ID
-B.Borrow_ID,
-B.Borrow_Fee
-from Borrow B, Media_Item M
-where B.Med_Item_ID = M.Med_Item_ID;
+to_char(SA.SALES_DATE, 'YYYYMM') AS Time_ID,
+to_char(SA.SALES_DATE, 'MM') as Month, -- Need for Season
+S.COMPANY_BRANCH,
+C.CUSTOMER_TYPE_ID,
+E.CATEGORY_ID,
+SA.SALES_DATE,
+SA.QUANTITY, -- for NUMBER_OF_EQUIPMENT
+SA.UNIT_SALES_PRICE,
+SA.TOTAL_SALES_PRICE, -- for Total_Revenue
+SA.EQUIPMENT_ID
+from MonEquip.SALES SA, MonEquip.CUSTOMER C, MonEquip.EQUIPMENT E, MonEquip.STAFF S 
+where SA.EQUIPMENT_ID = E.EQUIPMENT_ID AND
+SA.STAFF_ID = S.STAFF_ID AND
+SA.CUSTOMER_ID = C.CUSTOMER_ID;
 
-alter table TempFact 
-add (Quarter char(1)); 
+SELECT * FROM SalesTempFact_V1;
 
-update TempFact 
-set Quarter = ’1’ 
-where Month >= ’01’ 
-and Month <= ’03’;
-
-update TempFact 
-set Quarter = ’2’ 
-where Month >= ’04’ 
-and Month <= ’06’;
-
-update TempFact 
-set Quarter = ’3’ 
-where Month >= ’07’ 
-and Month <= ’08’; 
-
-update TempFact 
-set Quarter = ’4’ 
-where Quarter is null; 
-
-alter table TempFact 
-add (QuarterID char(5)); 
-
-update TempFact 
-set QuarterID = Year||Quarter; 
-
-create table MonMediaFact as 
-select 
-QuarterID, 
-Med_Type_ID, 
-Cen_ID, 
-Med_Item_ID
-count(Borrow_ID) as Number_of_Borrowed_Media
-sum(Borrow_Fee) as Total_Borrowing_Fee
-from TempFact 
-group by
-QuarterID, 
-Med_Type_ID, 
-Cen_ID, 
-Med_Item_ID;
-
-
-
-
-create table SeasonDIMTemp as
-SELECT DISTINCT Time_ID, Time_Month, Time_Year
-from (
-SELECT Time_ID, Time_Month, Time_Year from TimeDimSalesTemp
-    union all
-SELECT Time_ID, Time_Month, Time_Year from TimeDimHireTemp
-);
-
-alter table SeasonDIMTemp add 
+alter table SalesTempFact_V1 add 
 (Season VARCHAR2(6));
-
-update SeasonDIMTemp 
+update SalesTempFact_V1 
 set Season = 'Summer' 
-where Time_Month >= '12' 
-and Time_Month <= '02';
+where Month >= '12' 
+OR Month <= '02';
 
-update SeasonDIMTemp 
+update SalesTempFact_V1 
 set Season = 'Autumn' 
-where Time_Month >= '03' 
-and Time_Month <= '05';
+where Month >= '03' 
+and Month <= '05';
 
-update SeasonDIMTemp 
+update SalesTempFact_V1 
 set Season = 'Winter' 
-where Time_Month >= '06' 
-and Time_Month <= '08';
+where Month >= '06' 
+and Month <= '08';
 
-update SeasonDIMTemp 
+update SalesTempFact_V1 
 set Season = 'Spring' 
-where Time_Month >= '09' 
-and Time_Month <= '11';
+where Month >= '09' 
+and Month <= '11';
 
 
-
-
-update TimeDimTemp 
-set QuarterID = Year||Quarter; 
-
-create table TimeDim as 
-select distinct QuarterID, Quarter, Year 
-from TimeDimTemp;
+SELECT * FROM SalesTempFact_V1;
 
 -- Sales price scale: low sales <$5,000; medium sales between $5,000 and $10,000; high sales > $10,000
+alter table SalesTempFact_V1 add 
+(SalesPriceScale VARCHAR2(6));
+
+update SalesTempFact_V1 
+set SalesPriceScale = 'Low'
+where UNIT_SALES_PRICE < 5000; 
+
+update SalesTempFact_V1 
+set SalesPriceScale = 'Medium' 
+where UNIT_SALES_PRICE >= 5000 
+and UNIT_SALES_PRICE <= 10000;
+
+update SalesTempFact_V1 
+set SalesPriceScale = 'High' 
+where UNIT_SALES_PRICE > 10000; 
+
+SELECT * FROM SalesTempFact_V1;
+
+DROP TABLE SalesFact_V1 CASCADE CONSTRAINTS PURGE;
+
+--Season, Company_Branch, Customer_Type_ID, Category_ID, Time_ID, SalesPriceScale
+
+create table SalesFact_V1 as 
+select 
+Season, 
+Company_Branch, 
+Customer_Type_ID, 
+Category_ID, 
+Time_ID,
+SalesPriceScale,
+sum(QUANTITY) AS NUMBER_OF_EQUIPMENT_SOLD,
+sum(TOTAL_SALES_PRICE) AS TOTAL_REVENUE_FOR_SALES,
+AVG(UNIT_SALES_PRICE) AS AVERAGE_SALES_PRICE
+from SalesTempFact_V1 
+group by
+Season, 
+Company_Branch, 
+Customer_Type_ID, 
+Category_ID, 
+Time_ID,
+EQUIPMENT_ID,
+SalesPriceScale;
+
+SELECT * FROM SalesFact_V1;
 
 --b) SQL statements (e.g. create table, insert into, etc) to create the star/snowflake schema Version-2
 
-select * from MonEquip.<table_name>;
+create table CustomerDIM as
+select * from MonEquip.CUSTOMER;
+
+create table StaffDIM as
+select * from MonEquip.STAFF;
+
+create table EquipmentDIM as
+select * from MonEquip.STAFF;
+
+
+
 --HireFact_V2
 --SalesFact_V2
