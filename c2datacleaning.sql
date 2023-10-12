@@ -1,18 +1,3 @@
--- Data Exploration
---SQL statements to explore the operational database, and 
-
---Tables
---ADDRESS
---CATEGORY
---CUSTOMER
---CUSTOMERTYPE --CUSTOMERTYPE has a typo should be CUSTOMER_TYPE
---EQUIPMENT
---HIRE
---SALES
---STAFF
-
---select * from MonEquip.<table_name>;
-
 select * from MonEquip.ADDRESS;
 select * from MonEquip.CATEGORY;
 select * from MonEquip.CUSTOMER;
@@ -22,7 +7,7 @@ select * from MonEquip.HIRE;
 select * from MonEquip.SALES;
 select * from MonEquip.STAFF;
 
---1. How many records in the operational database? 
+--Number of records in each table
 select count(*)  from MonEquip.ADDRESS; --150
 select count(*)  from MonEquip.CATEGORY; --15
 select count(*)  from MonEquip.CUSTOMER; --153
@@ -32,14 +17,16 @@ select count(*) from MonEquip.HIRE; --304
 select count(*)  from MonEquip.SALES; --151
 select count(*)  from MonEquip.STAFF; --50
 
---2. How many records in the data warehouse? 
+--Relationship Problems
+select count(*)  from MonEquip.CUSTOMER; --153 should be 150
+select count(*) from MonEquip.HIRE; --304
+select count(*)  from MonEquip.SALES; --151
+select count(distinct customer_id) from MonEquip.HIRE; --127
+select count(distinct customer_id) from MonEquip.Sales; --92
 
---3. What kind of data is in the operational database? 
+-- Data checks
 
---4. How do the tables look like in the data warehouse?
-
---Relationship Problems 
-
+-- Checking if data is in the right table
 select * 
 from MonEquip.sales
 where equipment_id not in 
@@ -57,91 +44,8 @@ from MonEquip.sales
 where staff_id not in 
     (select staff_id
     from MonEquip.staff);
-
---Relationship Problems
-select count(*)  from MonEquip.CUSTOMER; --153 should be 150
-select count(*) from MonEquip.HIRE; --304
-select count(*)  from MonEquip.SALES; --151
-
-select count(distinct customer_id) from MonEquip.HIRE; --127
-select count(distinct customer_id) from MonEquip.Sales; --92
-
-select count(distinct customer_type_id) 
-from MonEquip.CUSTOMER;
-
---Incorrect Values
-
---sales price negatve
-select *
-from MonEquip.sales
-where unit_sales_price < 0;
-
--- sales quantity negative
-select * 
-from MonEquip.sales
-where quantity < 0;
-
---unitsalesprice * quantity = total sales price
-select * 
-from MonEquip.sales 
-where unit_sales_price * quantity != total_sales_price;
-
---manufacturer year and sales date
-select * 
-from MonEquip.equipment e join monequip.sales s on e.equipment_id = s.equipment_id
-where e.manufacture_year > s.to_char(sales_date,'dd-mon-yyyy');
-
---Inconsistent Values
-
--- checking if hire starting date is earlier than end date
-select * 
-from MonEquip.hire
-where start_date > end_date;
-
--- checking if sales can not be earlier than the first sale
-select * 
-from MonEquip.sales
-where sales_id < 1;
-
---Null Value Problems
-
--- checking if company branch is not null in staff
-select *
-from MonEquip.staff
-where company_branch IS NULL;
-
--- checking if season is not null in hire
-select * 
-from MonEquip.hire
-where season is null;
-
--- checking if season is not null in sales
-select * 
-from MonEquip.sales
-where season is null;
-
---Null Category 
-
-select * from MonEquip.equipment
-where category_id = 15;
-
---checking customer type
-
-select distinct CUSTOMER_TYPE_ID
-from MonEquip.customer;
-
---Duplication Problems
-
---customer with 4 counts
-select customer_id, count(*)
-from MonEquip.customer
-group by customer_id
-having count(*) > 1;
-
-select * from  MonEquip.customer
-where customer_id = 52;
-
---no simple duplicates for hire or sales
+    
+--Check for simple duplicates
 
 select sales_id, count(*)
 from MonEquip.sales
@@ -163,65 +67,7 @@ from MonEquip.equipment
 group by EQUIPMENT_ID
 having count(*) > 1;
 
-
---SQL statements of the data cleaning,
-
-
---20.1.1 Duplication Problems ...................................... 542 
---20.1.1.1 Data Duplication Between Records
-
---Detecting redundant records with different PK values can be tricky.
-
---One option is to group by all non-PK attributes. But if the number of non-PK attributes is large, this could be cumbersome.
-
-
-select START_DATE, END_DATE, EQUIPMENT_ID, QUANTITY, UNIT_HIRE_PRICE, TOTAL_HIRE_PRICE, CUSTOMER_ID, STAFF_ID, count(*)
-from MonEquip.hire
-group by START_DATE, END_DATE, EQUIPMENT_ID, QUANTITY, UNIT_HIRE_PRICE, TOTAL_HIRE_PRICE, CUSTOMER_ID, STAFF_ID
-having count(*) > 1;
-
-select SALES_DATE, EQUIPMENT_ID, QUANTITY, UNIT_SALES_PRICE, TOTAL_SALES_PRICE, CUSTOMER_ID, STAFF_ID, count(*)
-from MonEquip.sales
-group by SALES_DATE, EQUIPMENT_ID, QUANTITY, UNIT_SALES_PRICE, TOTAL_SALES_PRICE, CUSTOMER_ID, STAFF_ID 
-having count(*) > 1;
-
-
---20.1.1.2 Data Duplication Between Attributes
-
---To check if the values of these two attributes are the same, the following SQL command can be used:
-
---20.1.1.3 Duplication Between Tables
-
---20.1.2 Relationship Problems ..................................... 545
-
-select *
-from MonEquip.sales s
-where s.customer_id not in
-    select c.customer_id
-    from  MonEquip.customer c;
-
-select *
-from <<table 1>>
-where <<FK>> not in
-select <<PK>>
-from <<table 2>>;
-
-update <<table 1>>
-set <<FK>> = null
-where <<FK>> not in
-select <<PK>>
-from <<table 2>>;
-
---20.1.3 Inconsistent Values ......................................... 546 
---20.1.3.1 Inconsistent Values at a Record Level
-
-select *
-from MonEquip.hire
-where total_hire_price < 0;
-
-select *
-from MonEquip.hire
-where unit_hire_price < 0;
+--Checking for inconsistent values
 
 select count(*)
 from Patient
@@ -234,18 +80,6 @@ where height < 2.5;
 update Patient
 set height = height * 100
 where height < 2.5;
-
---20.1.3.2 Inconsistent Values Between Attributes
---20.1.4 Incorrect Values............................................. 550 
---20.1.4.1 Incorrect Value Problem at an Attribute Level
---20.1.4.2 Incorrect Value Problem Between Records
---20.1.4.3 Incorrect Value Problem Between Tables
-
---20.1.5 Null Value Problems........................................ 551 
---20.1.5.1 Null Value Problems at an Attribute Level
---20.1.5.2 Null Value Problems Between Records
---20.1.5.3 Null Value Problems Between Attributes
-
 
 -- check if there are illegal students in dw.uselog
 select * from dw.uselog
@@ -278,7 +112,6 @@ and log_time NOT IN
 and student_id NOT IN
  (select student_id from tempfact_uselog);
  
- 
 select
  to_char(log_time, 'HH24:MI') log_time,
  log_date,
@@ -288,3 +121,84 @@ select
 from dw.uselog
 group by log_time, log_date, student_id, act
 having count(*) > 1;
+
+
+--DATA ERRORS
+
+--Incorrect Values
+
+--unitsalesprice * quantity = total sales price
+select * 
+from MonEquip.sales 
+where unit_sales_price * quantity != total_sales_price;
+
+--Inconsistent Values
+
+-- checking if hire starting date is earlier than end date
+select * 
+from MonEquip.hire
+where start_date > end_date;
+
+--Null Value Problem
+
+--Null Category 
+
+select * from MonEquip.equipment e join MonEquip.category c on e.category_id = c.category_id
+where e.category_id = 15;
+
+--Duplication Problems
+
+--customer with 4 counts
+select customer_id, count(*)
+from MonEquip.customer
+group by customer_id
+having count(*) > 1;
+
+select * from  MonEquip.customer
+where customer_id = 52;
+
+-- Inconsistent Values
+select *
+from MonEquip.hire
+where total_hire_price < 0;
+
+select * 
+from MonEquip.sales
+where quantity < 0;
+
+select * 
+from MonEquip.sales
+where quantity < 0;
+
+
+------------------------------------
+-- I dont know what this chunk is--
+-----------------------------------
+select START_DATE, END_DATE, EQUIPMENT_ID, QUANTITY, UNIT_HIRE_PRICE, TOTAL_HIRE_PRICE, CUSTOMER_ID, STAFF_ID, count(*)
+from MonEquip.hire
+group by START_DATE, END_DATE, EQUIPMENT_ID, QUANTITY, UNIT_HIRE_PRICE, TOTAL_HIRE_PRICE, CUSTOMER_ID, STAFF_ID
+having count(*) > 1;
+
+select SALES_DATE, EQUIPMENT_ID, QUANTITY, UNIT_SALES_PRICE, TOTAL_SALES_PRICE, CUSTOMER_ID, STAFF_ID, count(*)
+from MonEquip.sales
+group by SALES_DATE, EQUIPMENT_ID, QUANTITY, UNIT_SALES_PRICE, TOTAL_SALES_PRICE, CUSTOMER_ID, STAFF_ID 
+having count(*) > 1;
+
+select *
+from MonEquip.sales 
+where customer_id not in
+    (select customer_id
+    from  MonEquip.customer c);
+
+select *
+from <<table 1>>
+where <<FK>> not in
+select <<PK>>
+from <<table 2>>;
+
+update <<table 1>>
+set <<FK>> = null
+where <<FK>> not in
+select <<PK>>
+from <<table 2>>;
+-----------------------------
