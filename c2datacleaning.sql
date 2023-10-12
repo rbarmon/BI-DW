@@ -76,6 +76,11 @@ select *
 from MonEquip.sales
 where unit_sales_price < 0;
 
+-- sales quantity negative
+select * 
+from MonEquip.sales
+where quantity < 0;
+
 --unitsalesprice * quantity = total sales price
 select * 
 from MonEquip.sales 
@@ -83,8 +88,8 @@ where unit_sales_price * quantity != total_sales_price;
 
 --manufacturer year and sales date
 select * 
-from MonEquip.equipment full outer join monequip.sales on MonEquip.equipment.equipment_id = monequip.sales.equipment_id
-where MonEquip.equipment.manufacture_year > MonEquip.sales.sales_date;
+from MonEquip.equipment e join monequip.sales s on e.equipment_id = s.equipment_id
+where e.manufacture_year > s.to_char(sales_date,'dd-mon-yyyy');
 
 --Inconsistent Values
 
@@ -193,7 +198,7 @@ select *
 from MonEquip.sales s
 where s.customer_id not in
     select c.customer_id
-    from  MonEquip.custome cr;
+    from  MonEquip.customer c;
 
 select *
 from <<table 1>>
@@ -217,8 +222,6 @@ where total_hire_price < 0;
 select *
 from MonEquip.hire
 where unit_hire_price < 0;
-
-
 
 select count(*)
 from Patient
